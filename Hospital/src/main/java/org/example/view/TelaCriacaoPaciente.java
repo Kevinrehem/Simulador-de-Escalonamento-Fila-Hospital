@@ -92,7 +92,7 @@ public class TelaCriacaoPaciente extends JFrame {
         JPanel rangePanel = new JPanel(new GridLayout(1, 3, 8, 0));
         rangePanel.add(labeled(min, "Mín"));
         rangePanel.add(new JLabel("até", SwingConstants.CENTER));
-        rangePanel.add(labeled(max, "M��x"));
+        rangePanel.add(labeled(max, "Máx"));
         parent.add(rangePanel, gc);
         gc.gridy++;
     }
@@ -130,15 +130,18 @@ public class TelaCriacaoPaciente extends JFrame {
         }
         Random random = new Random();
         List<Paciente> pacientes = new ArrayList<>();
-        for(int i=0; i<qtd; i++) {
+        for (int i = 0; i < qtd; i++) {
             pacientes.add(new Paciente(
-                    (random.nextInt(aMax)+aMin)*1000,
-                    (random.nextInt(bMax)+bMin)*1000,
-                    random.nextInt(pMax)+pMin,
-                    (random.nextInt(qMax)+qMin)*1000
+                    (random.nextInt(Math.max(1, (aMax - aMin + 1))) + aMin) * 1000,
+                    (random.nextInt(Math.max(1, (bMax - bMin + 1))) + bMin) * 1000,
+                    (random.nextInt(Math.max(1, (pMax - pMin + 1))) + pMin),
+                    (random.nextInt(Math.max(1, (qMax - qMin + 1))) + qMin) * 1000
             ));
         }
-        // Neste momento, apenas exibimos um resumo. Integração com geração ficará para depois.
-        return  pacientes;
+
+        // Abre a tela de resumo imediatamente com a tabela
+        TelaResumoPacientes resumo = new TelaResumoPacientes(pacientes);
+        resumo.setVisible(true);
+        return pacientes;
     }
 }
