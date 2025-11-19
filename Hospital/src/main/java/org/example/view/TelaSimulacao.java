@@ -42,7 +42,7 @@ public class TelaSimulacao extends JFrame implements SimulacaoObserver {
             historicoExecucao.put(p, Collections.synchronizedList(new ArrayList<>()));
         }
 
-        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1200, 700);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
