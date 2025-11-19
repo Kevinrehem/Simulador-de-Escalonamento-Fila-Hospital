@@ -7,16 +7,16 @@ import java.util.List;
 
 public class Medico implements Runnable {
 
-    private static List<Paciente> pacientes;
-    private static AlgoritmoEscalonamento algoritmoEscalonamento;
+    private List<Paciente> pacientes;
+    private AlgoritmoEscalonamento algoritmoEscalonamento;
 
     // Adicionado para comunicação com a UI
-    private static SimulacaoObserver observer;
+    private SimulacaoObserver observer;
 
     public Medico(List<Paciente> pacientes, AlgoritmoEscalonamento algoritmoEscalonamento, SimulacaoObserver observer) {
-        Medico.pacientes = pacientes;
-        Medico.algoritmoEscalonamento = algoritmoEscalonamento;
-        Medico.observer = observer;
+        this.pacientes = pacientes;
+        this.algoritmoEscalonamento = algoritmoEscalonamento;
+        this.observer = observer;
     }
 
     // Sobrecarga para manter compatibilidade se necessário, mas idealmente usamos o construtor acima
@@ -41,7 +41,9 @@ public class Medico implements Runnable {
                         try { Thread.sleep(100); } catch (InterruptedException e) {}
                     }
                     break;
-                // Outros casos...
+                case SHORTEST_JOB_FIRST:
+                    trabalhou = shortestJobFirst();
+                    break;
                 default:
                     break;
             }
@@ -99,7 +101,61 @@ public class Medico implements Runnable {
         }
     }
 
-    public void shortestJobFirst(){}
+    public boolean shortestJobFirst(){
+        Paciente atual = null;
+
+        synchronized (pacientes) {
+            if (pacientes.isEmpty()) return false;
+
+            // Procura quem tem o MENOR burstTime na lista
+            Paciente menorJob = null;
+
+            for (Paciente p : pacientes) {
+                if (menorJob == null || p.getBurstTime() < menorJob.getBurstTime()) {
+                    menorJob = p;
+                }
+            }
+
+            // Se achamos alguém, removemos ele da lista e assumimos o trabalho
+            if (menorJob != null) {
+                atual = menorJob;
+                pacientes.remove(atual);
+            }
+        }
+
+        if (atual == null) return false;
+
+        try {
+            // Delay visual para primeira execução (troca de contexto visual)
+            if(atual.isFirstRodeo()) {
+                Thread.sleep(50);
+                atual.setFirstRodeo(false);
+            }
+
+            // NOTIFICA INICIO (Fica Verde na tela)
+            if (observer != null) observer.notificarInicioExecucao(atual);
+
+            // Executa TUDO o que falta, pois Não tem Quantum.
+            int tempoParaExecutar = atual.getBurstTime();
+
+            // Simula processamento (Thread dorme pelo tempo total)
+            Thread.sleep(tempoParaExecutar);
+
+            // Zera o tempo restante (pois executou tudo)
+            atual.setBurstTime(0);
+
+            // NOTIFICA FIM (Salva bloco azul no histórico)
+            if (observer != null) observer.notificarFimExecucao(atual);
+
+            // Como é não-preemptivo, se ele rodou completamente, ele acabou
+            if (observer != null) observer.notificarConclusao(atual);
+
+            return true;
+
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
     public void shortestRemainingTimeFirst(){}
     public void priorityNonPreemptive(){}
 }
