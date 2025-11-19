@@ -10,9 +10,13 @@ import java.util.List;
 public class TelaResumoPacientes extends JFrame {
 
     private JTable table;
+    // Adicionado para persistir a lista e passar para a próxima tela
+    private List<Paciente> listaPacientes;
 
     public TelaResumoPacientes(List<Paciente> pacientes) {
         super("Resumo de Pacientes");
+        this.listaPacientes = pacientes; // Guarda a referência
+
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setSize(720, 420);
         setLocationRelativeTo(null);
@@ -57,9 +61,14 @@ public class TelaResumoPacientes extends JFrame {
         JButton btnContinuar = new JButton("Continuar");
 
         btnCancelar.addActionListener(e -> dispose());
+
+        // LÓGICA ALTERADA AQUI:
         btnContinuar.addActionListener(e -> {
-            // Aqui você pode acionar a próxima etapa do fluxo (ex: iniciar simulação)
-            // Por ora, apenas fecha a janela
+            // Abre o dialog de configuração passando esta janela como pai e a lista de pacientes
+            DialogConfigsMedico dialog = new DialogConfigsMedico(this, this.listaPacientes);
+            dialog.setVisible(true);
+
+            // Opcional: fechar a tela de resumo após abrir a próxima
             dispose();
         });
 
