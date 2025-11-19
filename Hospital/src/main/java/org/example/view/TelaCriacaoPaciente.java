@@ -7,9 +7,8 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
-import java.util.ArrayList;
+import java.util.*;
 import java.util.List;
-import java.util.Random;
 
 public class TelaCriacaoPaciente extends JFrame {
     private JSpinner spQtdPacientes;
@@ -131,7 +130,9 @@ public class TelaCriacaoPaciente extends JFrame {
         Random random = new Random();
         List<Paciente> pacientes = new ArrayList<>();
         for (int i = 0; i < qtd; i++) {
+            int numPaciente = i+1;
             pacientes.add(new Paciente(
+                    "P" + numPaciente,
                     (random.nextInt(Math.max(1, (aMax - aMin + 1))) + aMin) * 1000,
                     (random.nextInt(Math.max(1, (bMax - bMin + 1))) + bMin) * 1000,
                     (random.nextInt(Math.max(1, (pMax - pMin + 1))) + pMin),
@@ -140,6 +141,7 @@ public class TelaCriacaoPaciente extends JFrame {
         }
 
         // Abre a tela de resumo imediatamente com a tabela
+        Collections.sort(pacientes);
         TelaResumoPacientes resumo = new TelaResumoPacientes(pacientes);
         resumo.setVisible(true);
         return pacientes;
