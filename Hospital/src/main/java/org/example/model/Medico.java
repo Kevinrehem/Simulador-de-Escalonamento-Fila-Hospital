@@ -3,7 +3,9 @@ package org.example.model;
 import org.example.model.enums.AlgoritmoEscalonamento;
 import org.example.view.SimulacaoObserver;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 public class Medico implements Runnable {
 
@@ -38,11 +40,17 @@ public class Medico implements Runnable {
                     boolean trabalhou = roundRobin();
                     // Se não trabalhou (ex: todos esperando arrival time), evita loop infinito consumindo CPU
                     if (!trabalhou) {
-                        try { Thread.sleep(100); } catch (InterruptedException e) {}
+                        try {
+                            Thread.sleep(100);
+                        } catch (InterruptedException e) {
+                        }
                     }
                     break;
                 case SHORTEST_JOB_FIRST:
                     trabalhou = shortestJobFirst();
+                    break;
+                case SHORTEST_REMAINING_TIME_FIRST:
+                    trabalhou = shortestRemainingTimeFirst();
                     break;
                 default:
                     break;
@@ -50,7 +58,7 @@ public class Medico implements Runnable {
         }
     }
 
-    public boolean roundRobin(){
+    public boolean roundRobin() {
         Paciente atual = null;
 
         synchronized (pacientes) {
@@ -67,7 +75,7 @@ public class Medico implements Runnable {
 
         try {
 
-            if(atual.isFirstRodeo()) {
+            if (atual.isFirstRodeo()) {
                 Thread.sleep(50); // Pequeno delay visual para troca de contexto
                 atual.setFirstRodeo(false);
             }
@@ -101,7 +109,7 @@ public class Medico implements Runnable {
         }
     }
 
-    public boolean shortestJobFirst(){
+    public boolean shortestJobFirst() {
         Paciente atual = null;
 
         synchronized (pacientes) {
@@ -127,7 +135,7 @@ public class Medico implements Runnable {
 
         try {
             // Delay visual para primeira execução (troca de contexto visual)
-            if(atual.isFirstRodeo()) {
+            if (atual.isFirstRodeo()) {
                 Thread.sleep(50);
                 atual.setFirstRodeo(false);
             }
@@ -156,6 +164,70 @@ public class Medico implements Runnable {
             throw new RuntimeException(e);
         }
     }
-    public void shortestRemainingTimeFirst(){}
-    public void priorityNonPreemptive(){}
+
+    public boolean shortestRemainingTimeFirst() {
+        Paciente atual = null;
+
+        synchronized (pacientes) {
+            if (pacientes.isEmpty()) return false;
+
+            // seleciona o paciente com menor tempo restante
+            Optional<Paciente> menorOpt = pacientes.stream().min(Comparator.comparingInt(Paciente::getBurstTime));
+            if (menorOpt.isPresent()) {
+                atual = menorOpt.get();
+                pacientes.remove(atual);
+            }
+        }
+        if (atual == null) return false;
+
+        try {
+            if (atual.isFirstRodeo()) {
+                Thread.sleep(50);
+                atual.setFirstRodeo(false);
+            }
+            if (observer != null) observer.notificarInicioExecucao(atual);
+
+            // Executa em fatias pequenas para simular preempção frequente
+            int slice = 10;
+
+            while(atual.getBurstTime() > 0) {
+                int tempoExec = Math.min(slice, atual.getBurstTime());
+                Thread.sleep(tempoExec);
+
+                // tempo restante atualizado
+                atual.setBurstTime(atual.getBurstTime() - tempoExec);
+                int tempoRestantePacienteAtual = atual.getBurstTime();
+
+                if (observer != null) observer.notificarFimExecucao(atual);
+
+                if (atual.getBurstTime() <= 0) { // terminou completamente
+                    if (observer != null) observer.notificarConclusao(atual);
+                    break;
+                }
+
+                // Verifica se existe algum paciente com tempo restante menor -> preempção
+                boolean precisaPreemptar;
+                synchronized (pacientes) {
+                    precisaPreemptar = pacientes.stream()
+                            .anyMatch(p -> (p.getBurstTime() < tempoRestantePacienteAtual));
+                }
+
+                if (precisaPreemptar) {
+                    // Coloca o atual de volta na fila (fim da fila) para que outro seja escalonado
+                    synchronized (pacientes) {
+                        pacientes.add(atual);
+                    }
+                    break; // retorna para o loop externo do Medico.run() para escolher o próximo
+                }
+
+                // Caso não precise preemptar, continua o loop e executa a próxima fatia
+            }
+            return true;
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void priorityNonPreemptive() {
+    }
 }
