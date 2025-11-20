@@ -43,9 +43,10 @@ public class Medico implements Runnable {
                 if (pacientes.isEmpty()) break;
             }
 
+            boolean trabalhou = false;
             switch (algoritmoEscalonamento) {
                 case ROUND_ROBIN:
-                    boolean trabalhou = roundRobin();
+                    trabalhou = roundRobin();
                     // Se não trabalhou (ex: todos esperando arrival time), evita loop infinito consumindo CPU
                     if (!trabalhou) {
                         try {
@@ -58,10 +59,16 @@ public class Medico implements Runnable {
                     trabalhou = shortestJobFirst();
                     break;
                 case SHORTEST_REMAINING_TIME_FIRST:
-                    shortestRemainingTimeFirst();
+                    trabalhou = shortestRemainingTimeFirst();
                     break;
                 default:
                     break;
+            }
+            if (!trabalhou) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                }
             }
         }
     }
@@ -209,7 +216,10 @@ public class Medico implements Runnable {
 
                 // 3. VERIFICAÇÃO DE CONCLUSÃO
                 if (atual.getBurstTime() == 0) {
+                    if (observer != null) observer.notificarFimExecucao(atual);
                     if (observer != null) observer.notificarConclusao(atual);
+                    System.out.printf(atual.getBurstTime()+"");
+                    Thread.sleep(50);
                     break;
                 }
 
@@ -235,7 +245,6 @@ public class Medico implements Runnable {
                         break;
                     }
                 }
-
                 // SE NÃO PRECISAR PREEMPTAR:
                 // O código simplesmente ignora o if acima, atinge o fim do while
                 // e volta para o topo para processar mais 100ms DO MESMO PACIENTE.
