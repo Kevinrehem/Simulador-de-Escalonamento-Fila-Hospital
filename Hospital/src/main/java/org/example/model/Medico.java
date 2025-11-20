@@ -15,6 +15,10 @@ public class Medico implements Runnable {
     // Adicionado para comunicação com a UI
     private SimulacaoObserver observer;
 
+    // Controle de tempo relativo da simulação
+    private long startTime = 0;
+    private boolean iniciado = false;
+
     public Medico(List<Paciente> pacientes, AlgoritmoEscalonamento algoritmoEscalonamento, SimulacaoObserver observer) {
         this.pacientes = pacientes;
         this.algoritmoEscalonamento = algoritmoEscalonamento;
@@ -27,6 +31,10 @@ public class Medico implements Runnable {
     }
 
     public void run() {
+        if (!iniciado) {
+            this.startTime = System.currentTimeMillis();
+            this.iniciado = true;
+        }
         // Loop principal: Enquanto houver pacientes na lista
         while (true) {
             // Verifica se ainda há pacientes E se alguém não terminou
@@ -50,7 +58,7 @@ public class Medico implements Runnable {
                     trabalhou = shortestJobFirst();
                     break;
                 case SHORTEST_REMAINING_TIME_FIRST:
-                    trabalhou = shortestRemainingTimeFirst();
+                    shortestRemainingTimeFirst();
                     break;
                 default:
                     break;
@@ -74,7 +82,6 @@ public class Medico implements Runnable {
         if (atual == null) return false;
 
         try {
-
             if (atual.isFirstRodeo()) {
                 Thread.sleep(50); // Pequeno delay visual para troca de contexto
                 atual.setFirstRodeo(false);
@@ -165,67 +172,79 @@ public class Medico implements Runnable {
         }
     }
 
+
     public boolean shortestRemainingTimeFirst() {
         Paciente atual = null;
+        long tempoDecorrido = System.currentTimeMillis() - this.startTime;
 
         synchronized (pacientes) {
             if (pacientes.isEmpty()) return false;
 
-            // seleciona o paciente com menor tempo restante
-            Optional<Paciente> menorOpt = pacientes.stream().min(Comparator.comparingInt(Paciente::getBurstTime));
-            if (menorOpt.isPresent()) {
-                atual = menorOpt.get();
-                pacientes.remove(atual);
+            // 1. SELEÇÃO DO PACIENTE (Igual ao seu código)
+            long finalTempoDecorrido = tempoDecorrido;
+            Optional<Paciente> candidato = pacientes.stream()
+                    .filter(p -> p.getArrivalTime() <= finalTempoDecorrido)
+                    .min(Comparator.comparingInt(Paciente::getBurstTime));
+
+            if (candidato.isPresent()) {
+                atual = candidato.get();
+                pacientes.remove(atual); // Remove da lista global para atender com exclusividade
             }
         }
+
         if (atual == null) return false;
 
         try {
-            if (atual.isFirstRodeo()) {
-                Thread.sleep(50);
-                atual.setFirstRodeo(false);
-            }
             if (observer != null) observer.notificarInicioExecucao(atual);
 
-            // Executa em fatias pequenas para simular preempção frequente
-            int slice = 10;
+            // LOOP DE EXECUÇÃO (Mantém o paciente na CPU enquanto for o melhor)
+            while (true) {
+                // 2. EXECUÇÃO DA FATIA DE TEMPO
+                int timeStep = 100;
+                int tempoExecucao = Integer.min(timeStep, atual.getBurstTime());
 
-            while(atual.getBurstTime() > 0) {
-                int tempoExec = Math.min(slice, atual.getBurstTime());
-                Thread.sleep(tempoExec);
+                Thread.sleep(tempoExecucao);
+                atual.setBurstTime(atual.getBurstTime() - tempoExecucao);
 
-                // tempo restante atualizado
-                atual.setBurstTime(atual.getBurstTime() - tempoExec);
-                int tempoRestantePacienteAtual = atual.getBurstTime();
 
-                if (observer != null) observer.notificarFimExecucao(atual);
-
-                if (atual.getBurstTime() <= 0) { // terminou completamente
+                // 3. VERIFICAÇÃO DE CONCLUSÃO
+                if (atual.getBurstTime() == 0) {
                     if (observer != null) observer.notificarConclusao(atual);
                     break;
                 }
 
-                // Verifica se existe algum paciente com tempo restante menor -> preempção
-                boolean precisaPreemptar;
+                // 4. VERIFICAÇÃO DE PREEMPÇÃO
+                // Recalcula o tempo atual pois o sleep passou
+                tempoDecorrido = System.currentTimeMillis() - this.startTime;
+
+                boolean precisaPreemptar = false;
+
                 synchronized (pacientes) {
+                    long finalTempoDecorrido = tempoDecorrido;
+                    Paciente finalAtual = atual;
+
+                    // Verifica se ALGUÉM na fila é melhor que o atual
                     precisaPreemptar = pacientes.stream()
-                            .anyMatch(p -> (p.getBurstTime() < tempoRestantePacienteAtual));
-                }
+                            .anyMatch(p -> p.getArrivalTime() <= finalTempoDecorrido
+                                    && p.getBurstTime() < finalAtual.getBurstTime());
 
-                if (precisaPreemptar) {
-                    // Coloca o atual de volta na fila (fim da fila) para que outro seja escalonado
-                    synchronized (pacientes) {
+                    if (precisaPreemptar) {
+                        // SÓ AQUI ele volta para a fila
+                        if (observer != null) observer.notificarFimExecucao(atual);
                         pacientes.add(atual);
+                        break;
                     }
-                    break; // retorna para o loop externo do Medico.run() para escolher o próximo
                 }
 
-                // Caso não precise preemptar, continua o loop e executa a próxima fatia
+                // SE NÃO PRECISAR PREEMPTAR:
+                // O código simplesmente ignora o if acima, atinge o fim do while
+                // e volta para o topo para processar mais 100ms DO MESMO PACIENTE.
             }
-            return true;
+
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+        return true;
     }
 
     public void priorityNonPreemptive() {
