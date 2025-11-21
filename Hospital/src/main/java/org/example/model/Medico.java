@@ -61,6 +61,9 @@ public class Medico implements Runnable {
                 case SHORTEST_REMAINING_TIME_FIRST:
                     trabalhou = shortestRemainingTimeFirst();
                     break;
+                case PRIORITY_NON_PREEMPTIVE:
+                    trabalhou = priorityNonPreemptive();
+                    break;
                 default:
                     break;
             }
@@ -256,6 +259,88 @@ public class Medico implements Runnable {
         return true;
     }
 
-    public void priorityNonPreemptive() {
+    public boolean priorityNonPreemptive() {
+        Paciente atual = null;
+        long tempoDecorrido = System.currentTimeMillis() - this.startTime;
+
+        synchronized (pacientes) {
+            if (pacientes.isEmpty()) return false;
+
+            Paciente candidatoPrioritario = null;
+
+            // Itera sobre a lista para encontrar o paciente com maior prioridade (menor valor)
+            // que JÁ chegou no hospital (arrivalTime <= tempoDecorrido)
+            for (Paciente p : pacientes) {
+                // Regra 1: O paciente precisa ter chegado
+                if (p.getArrivalTime() <= tempoDecorrido) {
+
+                    // Se ainda não escolhemos ninguém, pega o primeiro que chegou
+                    if (candidatoPrioritario == null) {
+                        candidatoPrioritario = p;
+                    } else {
+                        // Regra 2: Menor valor de prioridade ganha (1 > 5)
+                        if (p.getPriority() < candidatoPrioritario.getPriority()) {
+                            candidatoPrioritario = p;
+                        }
+                        // Regra 3: Desempate FIFO (Se prioridades iguais, ganha quem chegou antes)
+                        // Como a lista geralmente está ordenada por chegada ou inserção,
+                        // o 'if' estrito (<) acima já preserva o FIFO natural da lista.
+                        // Mas podemos garantir explicitamente comparando ArrivalTime:
+                        else if (p.getPriority() == candidatoPrioritario.getPriority()) {
+                            if (p.getArrivalTime() < candidatoPrioritario.getArrivalTime()) {
+                                candidatoPrioritario = p;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Se encontramos alguém apto, removemos da fila global e assumimos o atendimento
+            if (candidatoPrioritario != null) {
+                atual = candidatoPrioritario;
+                pacientes.remove(atual);
+            }
+        }
+
+        // Se ninguém chegou ainda ou a lista está vazia
+        if (atual == null) return false;
+
+        try {
+            // Delay visual para troca de contexto (apenas se for a primeira vez)
+            if (atual.isFirstRodeo()) {
+                Thread.sleep(50);
+                atual.setFirstRodeo(false);
+            }
+
+            // --- INÍCIO DO ATENDIMENTO ---
+            if (observer != null) observer.notificarInicioExecucao(atual);
+
+            // Como é NÃO-PREEMPTIVO, executamos o Burst Time inteiro de uma vez
+            int tempoExecucao = atual.getBurstTime();
+
+            // Simula o processamento travando a thread pelo tempo total
+            Thread.sleep(tempoExecucao);
+
+            // O processo terminou
+            atual.setBurstTime(0);
+
+            // --- FIM DO ATENDIMENTO ---
+            if (observer != null) observer.notificarFimExecucao(atual);
+
+            // Notifica que o processo foi concluído (saiu do sistema)
+            if (observer != null) observer.notificarConclusao(atual);
+
+            return true;
+
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // Método auxiliar para limpar o código do run (opcional)
+    private void esperar() {
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {}
     }
 }
