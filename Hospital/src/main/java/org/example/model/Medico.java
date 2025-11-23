@@ -129,50 +129,47 @@ public class Medico implements Runnable {
     public boolean shortestJobFirst() {
         Paciente atual = null;
 
+        // Tempo que já passou na simulação
+        long tempoDecorrido = System.currentTimeMillis() - this.startTime;
+
         synchronized (pacientes) {
             if (pacientes.isEmpty()) return false;
 
-            // Procura quem tem o MENOR burstTime na lista
             Paciente menorJob = null;
 
+            // Procura o menor burst ENTRE os pacientes que já chegaram
             for (Paciente p : pacientes) {
-                if (menorJob == null || p.getBurstTime() < menorJob.getBurstTime()) {
-                    menorJob = p;
+                if (p.getArrivalTime() <= tempoDecorrido) {
+                    if (menorJob == null || p.getBurstTime() < menorJob.getBurstTime()) {
+                        menorJob = p;
+                    }
                 }
             }
 
-            // Se achamos alguém, removemos ele da lista e assumimos o trabalho
-            if (menorJob != null) {
-                atual = menorJob;
-                pacientes.remove(atual);
+            // Se ninguém chegou ainda, não há o que fazer neste ciclo
+            if (menorJob == null) {
+                return false;
             }
+
+            atual = menorJob;
+            pacientes.remove(atual);
         }
 
-        if (atual == null) return false;
-
         try {
-            // Delay visual para primeira execução (troca de contexto visual)
             if (atual.isFirstRodeo()) {
                 Thread.sleep(50);
                 atual.setFirstRodeo(false);
             }
 
-            // NOTIFICA INICIO (Fica Verde na tela)
             if (observer != null) observer.notificarInicioExecucao(atual);
 
-            // Executa TUDO o que falta, pois Não tem Quantum.
+            // Executa todo o burst
             int tempoParaExecutar = atual.getBurstTime();
-
-            // Simula processamento (Thread dorme pelo tempo total)
             Thread.sleep(tempoParaExecutar);
 
-            // Zera o tempo restante (pois executou tudo)
             atual.setBurstTime(0);
 
-            // NOTIFICA FIM (Salva bloco azul no histórico)
             if (observer != null) observer.notificarFimExecucao(atual);
-
-            // Como é não-preemptivo, se ele rodou completamente, ele acabou
             if (observer != null) observer.notificarConclusao(atual);
 
             return true;
