@@ -166,3 +166,97 @@ public boolean roundRobin() {
         }
     }
 ```
+
+---
+
+### Shortest Job First
+
+
+---
+
+### Shortest Remaining Time First
+
+O algoritmo Shortest Remaining Time First (SRTF) é a versão preemptiva do Shortest Job First. A cada ciclo, ele seleciona o paciente que possui o menor tempo de execução restante (`burstTime`) entre aqueles que já chegaram (`arrivalTime <= tempoDecorrido`).
+
+Diferente das outras implementações, este método mantém um loop interno de execução. A cada pequena fatia de tempo processada (simulada como 100ms), o sistema verifica se houve a chegada de um novo paciente com tempo de execução menor do que o tempo restante do paciente atual. Se essa condição for verdadeira, ocorre a **preempção**: o paciente atual é interrompido, devolvido à fila de espera, e o médico fica livre para selecionar o novo melhor candidato na próxima iteração principal.
+
+```java
+public boolean shortestRemainingTimeFirst() {
+    Paciente atual = null;
+    long tempoDecorrido = System.currentTimeMillis() - this.startTime;
+
+    synchronized (pacientes) {
+        if (pacientes.isEmpty()) return false;
+
+        // 1. SELEÇÃO DO PACIENTE (Menor tempo restante entre os que já chegaram)
+        long finalTempoDecorrido = tempoDecorrido;
+        Optional<Paciente> candidato = pacientes.stream()
+                .filter(p -> p.getArrivalTime() <= finalTempoDecorrido)
+                .min(Comparator.comparingInt(Paciente::getBurstTime));
+
+        if (candidato.isPresent()) {
+            atual = candidato.get();
+            pacientes.remove(atual); // Remove da lista global para atender com exclusividade
+        }
+    }
+
+    if (atual == null) return false;
+
+    try {
+        if (observer != null) observer.notificarInicioExecucao(atual);
+
+        // LOOP DE EXECUÇÃO (Mantém o paciente na CPU enquanto for o melhor)
+        while (true) {
+            // 2. EXECUÇÃO DA FATIA DE TEMPO
+            int timeStep = 100;
+            int tempoExecucao = Integer.min(timeStep, atual.getBurstTime());
+
+            Thread.sleep(tempoExecucao);
+            atual.setBurstTime(atual.getBurstTime() - tempoExecucao);
+
+
+            // 3. VERIFICAÇÃO DE CONCLUSÃO
+            if (atual.getBurstTime() == 0) {
+                if (observer != null) observer.notificarFimExecucao(atual);
+                if (observer != null) observer.notificarConclusao(atual);
+                System.out.printf(atual.getBurstTime()+"");
+                Thread.sleep(50);
+                break;
+            }
+
+            // 4. VERIFICAÇÃO DE PREEMPÇÃO
+            // Recalcula o tempo atual pois o sleep passou
+            tempoDecorrido = System.currentTimeMillis() - this.startTime;
+
+            boolean precisaPreemptar = false;
+
+            synchronized (pacientes) {
+                long finalTempoDecorrido = tempoDecorrido;
+                Paciente finalAtual = atual;
+
+                // Verifica se ALGUÉM na fila é melhor que o atual (SRTF)
+                precisaPreemptar = pacientes.stream()
+                        .anyMatch(p -> p.getArrivalTime() <= finalTempoDecorrido
+                                && p.getBurstTime() < finalAtual.getBurstTime());
+
+                if (precisaPreemptar) {
+                    // SÓ AQUI ele volta para a fila (Troca de Contexto)
+                    if (observer != null) observer.notificarFimExecucao(atual);
+                    pacientes.add(atual);
+                    break;
+                }
+            }
+            // SE NÃO PRECISAR PREEMPTAR:
+            // O código continua no loop while, processando mais uma fatia do mesmo paciente.
+        }
+
+    } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+    }
+    return true;
+}
+```
+
+---
+
+### Prioridade Não-Preemptivo
