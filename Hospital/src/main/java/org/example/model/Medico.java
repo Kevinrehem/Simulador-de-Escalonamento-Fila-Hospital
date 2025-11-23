@@ -9,7 +9,7 @@ import java.util.Optional;
 
 public class Medico implements Runnable {
 
-    private List<Paciente> pacientes;
+    private static List<Paciente> pacientes;
     private AlgoritmoEscalonamento algoritmoEscalonamento;
 
     // Adicionado para comunicação com a UI
