@@ -260,3 +260,74 @@ public boolean shortestRemainingTimeFirst() {
 ---
 
 ### Prioridade Não-Preemptivo
+
+O algoritmo de Prioridade Não-Preemptivo seleciona para execução o paciente que possui a maior urgência (representada pelo menor valor numérico no atributo `priority`, onde 1 é a maior prioridade). A seleção é feita apenas entre os pacientes que já chegaram na fila (`arrivalTime` <= tempo atual).
+
+Como critério de desempate, caso dois pacientes tenham a mesma prioridade, o algoritmo utiliza a ordem de chegada (FIFO). Por ser **não-preemptivo**, uma vez que um médico inicia o atendimento de um paciente, ele o executa ininterruptamente até o fim de seu `burstTime`, ignorando a chegada de novos pacientes com prioridades maiores durante esse período.
+
+```java
+public boolean priorityNonPreemptive() {
+    Paciente atual = null;
+    long tempoDecorrido = System.currentTimeMillis() - this.startTime;
+
+    synchronized (pacientes) {
+        if (pacientes.isEmpty()) return false;
+
+        Paciente candidatoPrioritario = null;
+
+        // Itera sobre a lista para encontrar o paciente com maior prioridade (menor valor)
+        // que JÁ chegou no hospital
+        for (Paciente p : pacientes) {
+            if (p.getArrivalTime() <= tempoDecorrido) {
+                
+                if (candidatoPrioritario == null) {
+                    candidatoPrioritario = p;
+                } else {
+                    // Critério principal: Menor valor de prioridade ganha (1 > 5)
+                    if (p.getPriority() < candidatoPrioritario.getPriority()) {
+                        candidatoPrioritario = p;
+                    }
+                    // Critério de Desempate: FIFO (Quem chegou antes)
+                    else if (p.getPriority() == candidatoPrioritario.getPriority()) {
+                         if (p.getArrivalTime() < candidatoPrioritario.getArrivalTime()) {
+                             candidatoPrioritario = p;
+                         }
+                    }
+                }
+            }
+        }
+
+        // Se encontramos alguém apto, removemos da fila global e assumimos o atendimento
+        if (candidatoPrioritario != null) {
+            atual = candidatoPrioritario;
+            pacientes.remove(atual);
+        }
+    }
+
+    if (atual == null) return false;
+
+    try {
+        if (atual.isFirstRodeo()) {
+            Thread.sleep(50);
+            atual.setFirstRodeo(false);
+        }
+
+        // --- INÍCIO DO ATENDIMENTO ---
+        if (observer != null) observer.notificarInicioExecucao(atual);
+
+        // Executa o Burst Time inteiro de uma vez (Não-Preemptivo)
+        int tempoExecucao = atual.getBurstTime();
+        Thread.sleep(tempoExecucao);
+        
+        atual.setBurstTime(0);
+
+        // --- FIM DO ATENDIMENTO ---
+        if (observer != null) observer.notificarFimExecucao(atual);
+        if (observer != null) observer.notificarConclusao(atual);
+
+        return true;
+
+    } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+    }
+}
