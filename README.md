@@ -353,7 +353,6 @@ public boolean priorityNonPreemptive() {
 | P5       | 2.0         | 3.0       | 3          | 2.0         |
 
 ##### Resultados da simulação
-<img width="1990" height="789" alt="image" src="https://github.com/user-attachments/assets/dcb67f57-47c1-4a43-a0ab-897bdd69f4b2" />
 
 | ALGORITMO DE ESCALONAMENTO                 | TEMPO MÉDIO DE ESPERA | TEMPO MÉDIO DE EXECUÇÃO | TROCAS DE CONTEXTO | USO DA CPU |
 |:-------------------------------------------|:----------------------|:------------------------|:-------------------|:-----------|
@@ -397,7 +396,6 @@ elegível para tomar tempo do processador, ele é processado até o fim, e sempr
 | P25      | 19.0        | 6.0       | 2          | 2.0         |
 
 ##### Resultados da simulação
-<img width="1989" height="1965" alt="image" src="https://github.com/user-attachments/assets/2f8067c6-0859-4469-8464-d8c42096f685" />
 
 | ALGORITMO DE ESCALONAMENTO                 | TEMPO MÉDIO DE ESPERA | TEMPO MÉDIO DE EXECUÇÃO | TROCAS DE CONTEXTO | USO DA CPU |
 |:-------------------------------------------|:----------------------|:------------------------|:-------------------|:-----------|
@@ -456,7 +454,6 @@ de pacientes críticos, provavelmente o melhor algoritmo aqui seria o PNP, pois 
 | P40      | 15.0        | 10.0      | 3          | 3.0         |
 
 ##### Resultados da simulação
-<img width="1989" height="2847" alt="image" src="https://github.com/user-attachments/assets/f878a845-38b3-44db-b1f2-471c82fae3ac" />
 
 | ALGORITMO DE ESCALONAMENTO                 | TEMPO MÉDIO DE ESPERA | TEMPO MÉDIO DE EXECUÇÃO | TROCAS DE CONTEXTO | USO DA CPU |
 |:-------------------------------------------|:----------------------|:------------------------|:-------------------|:-----------|
