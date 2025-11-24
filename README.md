@@ -172,9 +172,74 @@ public boolean roundRobin() {
 
 ---
 
-### Shortest Job First
+### Shortest Job First (SJF)
 
+O algoritmo **Shortest Job First (SJF)** seleciona para execução o
+processo que possui o menor tempo de duração (*`burstTime`*) dentre
+todos os Pacientes que **já chegaram** à fila de prontos,
+considerando o tempo decorrido da simulação.\
+A escolha ocorre dentro de um bloco `synchronized`, garantindo que
+**múltiplos Médicos (Threads)** acessem a lista compartilhada sem causar
+inconsistências.
 
+Diferente do Round-Robin, esta implementação é **não-preemptiva**: uma
+vez escolhido, o Paciente executa **todo o seu burst** de forma
+contínua, sem interrupção, até ser concluído e removido do sistema.
+
+```java
+public boolean shortestJobFirst() {
+    Paciente atual = null;
+
+    // Tempo que já passou na simulação
+    long tempoDecorrido = System.currentTimeMillis() - this.startTime;
+
+    synchronized (pacientes) {
+        if (pacientes.isEmpty()) return false;
+
+        Paciente menorJob = null;
+
+        // Procura o menor burst ENTRE os pacientes que já chegaram
+        for (Paciente p : pacientes) {
+            if (p.getArrivalTime() <= tempoDecorrido) {
+                if (menorJob == null || p.getBurstTime() < menorJob.getBurstTime()) {
+                    menorJob = p;
+                }
+            }
+        }
+
+        // Se ninguém chegou ainda, não há o que fazer neste ciclo
+        if (menorJob == null) {
+            return false;
+        }
+
+        atual = menorJob;
+        pacientes.remove(atual);
+    }
+
+    try {
+        if (atual.isFirstRodeo()) {
+            Thread.sleep(50);
+            atual.setFirstRodeo(false);
+        }
+
+        if (observer != null) observer.notificarInicioExecucao(atual);
+
+        // Executa todo o burst (Não-Preemptivo)
+        int tempoParaExecutar = atual.getBurstTime();
+        Thread.sleep(tempoParaExecutar);
+
+        atual.setBurstTime(0);
+
+        if (observer != null) observer.notificarFimExecucao(atual);
+        if (observer != null) observer.notificarConclusao(atual);
+
+        return true;
+
+    } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+    }
+}
+```
 ---
 
 ### Shortest Remaining Time First
