@@ -6,6 +6,9 @@
 - ANTÔNIO CARLOS
 - RHUAN AZEVEDO
 
+  ## APRESENTAÇÃO
+  ![APRESENTAÇÃO](https://drive.google.com/file/d/1TOAFMGc5-QIvL66cOt0nVaJw2-A0GgIE/view?usp=sharing)
+
 ## OBJETIVO
 O projeto tem por objetivo por em prática conceitos de escalonamento de processos para melhor entendimento da matéria de Sistemas Operacionais
  
